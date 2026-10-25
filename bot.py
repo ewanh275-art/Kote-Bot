@@ -16,8 +16,8 @@ pet_data = {}
 feed_cooldowns = {}
 play_cooldowns = {}
 daily_cooldowns = {}
-COOLDOWN_TIME = 3600  # 1 hour in seconds
-DAILY_COOLDOWN = 86400  # 24 hours in seconds
+COOLDOWN_TIME = 3600
+DAILY_COOLDOWN = 86400
 
 GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
@@ -67,17 +67,7 @@ def get_time_remaining(last_time, total_time=COOLDOWN_TIME):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
-    caption = (
-        "Welcome to Kote Pet Simulator! 🐾🔥\n\n"
-        "Commands:\n"
-        "/kote - Look at Kote\n"
-        "/stats - Check pet stats & events\n"
-        "/daily - Claim daily login streak bonus 🎁\n"
-        "/feed - Feed pet (1h cooldown)\n"
-        "/play - Play with pet (1h cooldown)\n"
-        "/raid - Meme coin raid 🚀\n"
-        "/leaderboard - Top token holders 🏆"
-    )
+    caption = "Welcome to Kote Pet Simulator! 🐾🔥\n\nCommands:\n/kote - Look at Kote\n/stats - Check stats\n/daily - Claim streak 🎁\n/feed - Feed (1h)\n/play - Play (1h)\n/raid - Raid 🚀\n/leaderboard - Top pets 🏆"
     await update.message.reply_animation(animation=GIFS["start"], caption=caption)
 
 async def kote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,24 +80,17 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
     
-    # 20% chance for a random status event when checking stats
     event_text = ""
     if random.random() < 0.2:
         event = random.choice([
-            ("💡 Kote stared into the matrix and sniffed out a hidden airdrop! +25 bonus coins.", 25),
-            ("😴 Kote took a long nap and dreamed about bull markets. Peaceful vibes!", 0),
-            ("🔍 Kote inspected your portfolio and found loose change down the couch cushions! +10 coins.", 10)
+            ("💡 Kote sniffed out a hidden airdrop! +25 bonus coins.", 25),
+            ("😴 Kote took a long nap and dreamed about bull markets.", 0),
+            ("🔍 Kote found loose change down the couch cushions! +10 coins.", 10)
         ])
         pet['coins'] += event[1]
-        event_text = f"\n\n✨ **Random Event**: {event[0]}"
+        event_text = f"\n\n✨ Random Event: {event[0]}"
 
-    text = (
-        f"📊 **{pet['name']}'s Stats**:\n"
-        f"🥩 Hunger: {pet['hunger']}/100\n"
-        f"🎾 Happiness: {pet['happiness']}/100\n"
-        f"🔥 Daily Streak: {pet['streak']} days\n"
-        f"🪙 Total Token Score: {pet['coins']:,}{event_text}"
-    )
+    text = f"📊 {pet['name']}'s Stats:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happiness']}/100\n🔥 Streak: {pet['streak']} days\n🪙 Total Score: {pet['coins']:,}{event_text}"
     await update.message.reply_text(text)
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -116,7 +99,6 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_time = time.time()
     
     last_login = pet['last_login']
-    # If more than 48 hours passed, reset streak
     if last_login > 0 and (current_time - last_login) > (DAILY_COOLDOWN * 2):
         pet['streak'] = 0
 
@@ -124,15 +106,7 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elapsed = current_time - daily_cooldowns[user.id]
         if elapsed < DAILY_COOLDOWN:
             timeLeft = get_time_remaining(daily_cooldowns[user.id], DAILY_COOLDOWN)
-            await update.message.reply_text(f"⏳ You already claimed your daily bonus! Come back in {timeLeft}.")
+            await update.message.reply_text(f"⏳ Already claimed daily bonus! Come back in {timeLeft}.")
             return
 
     daily_cooldowns[user.id] = current_time
-    pet['last_login'] = current_time
-    pet['streak'] += 1
-    
-    reward = 50 * pet['streak']
-    pet['coins'] += reward
-    
-    await update.message.reply_text(
-        f"🎁 **Daily Streak Claim
