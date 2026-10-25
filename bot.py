@@ -39,93 +39,88 @@ def get_pet(user_id, username):
         }
     return pet_data[user_id]
 
-# --- COMMAND FUNCTIONS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
-    caption = (
-        f"Welcome to Kote Pet Simulator, {user.first_name}! 🐾🔥\n\n"
-        "Commands:\n"
-        "/stats - Check Kote's status\n"
-        "/feed - Open interactive feeding menu 🥩\n"
-        "/play - Open interactive play menu 🎾\n"
-        "/raid - Go on a meme coin raid 🚀\n"
-        "/leaderboard - View top wealthy pets 🏆"
-    )
+    caption = "Welcome to Kote Pet Simulator! 🐾\nCommands:\n/stats\n/feed\n/play\n/raid\n/leaderboard"
     await update.message.reply_animation(animation=GIFS["start"], caption=caption)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    await update.message.reply_text(
-        f"📊 **{pet['name']}'s Kote Stats**:\n"
-        f"🥩 Hunger: {pet['hunger']}/100\n"
-        f"🎾 Happiness: {pet['happiness']}/100\n"
-        f"🪙 Coins: {pet['coins']}"
-    )
+    text = f"📊 {pet['name']}'s Stats:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happiness']}/100\nCoins: {pet['coins']}"
+    await update.message.reply_text(text)
 
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🥩 Juicy Steak (+25 Hunger)", callback_data="feed_steak")],
-        [InlineKeyboardButton("🐟 Fresh Fish (+15 Hunger)", callback_data="feed_fish")]
+        [InlineKeyboardButton("🥩 Steak (+25)", callback_data="feed_steak")],
+        [InlineKeyboardButton("🐟 Fish (+15)", callback_data="feed_fish")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Choose what to feed Kote:", reply_markup=reply_markup)
+    await update.message.reply_text("Choose food:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🎾 Throw Ball (+15 Happy)", callback_data="play_ball")],
-        [InlineKeyboardButton("🧶 Laser Pointer (+20 Happy)", callback_data="play_laser")]
+        [InlineKeyboardButton("🎾 Ball (+15)", callback_data="play_ball")],
+        [InlineKeyboardButton("🔴 Laser (+20)", callback_data="play_laser")]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Choose how you want to play with Kote:", reply_markup=reply_markup)
+    await update.message.reply_text("Choose activity:", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
     user = query.from_user
     pet = get_pet(user.id, user.first_name)
     
     if query.data == "feed_steak":
         pet['hunger'] = min(100, pet['hunger'] + 25)
-        text = f"🥩 Nom nom! Kote devoured the steak. Hunger is now {pet['hunger']}/100!"
-        await query.edit_message_text(text=text)
+        await query.edit_message_text(text=f"Ate Steak! Hunger: {pet['hunger']}/100")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["feed"])
-        
     elif query.data == "feed_fish":
         pet['hunger'] = min(100, pet['hunger'] + 15)
-        text = f"🐟 Slurp! Kote enjoyed the fish. Hunger is now {pet['hunger']}/100!"
-        await query.edit_message_text(text=text)
+        await query.edit_message_text(text=f"Ate Fish! Hunger: {pet['hunger']}/100")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["feed"])
-        
     elif query.data == "play_ball":
         pet['happiness'] = min(100, pet['happiness'] + 15)
         pet['coins'] += 10
-        text = f"🎾 You threw the ball! Happiness: {pet['happiness']}/100, Coins: +10 🪙"
-        await query.edit_message_text(text=text)
+        await query.edit_message_text(text=f"Played Ball! Happiness: {pet['happiness']}/100, Coins: +10")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["play"])
-        
     elif query.data == "play_laser":
         pet['happiness'] = min(100, pet['happiness'] + 20)
         pet['coins'] += 15
-        text = f"🔴 Laser chaos! Happiness: {pet['happiness']}/100, Coins: +15 🪙"
-        await query.edit_message_text(text=text)
+        await query.edit_message_text(text=f"Played Laser! Happiness: {pet['happiness']}/100, Coins: +15")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["play"])
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    earned = 50
-    pet['coins'] += earned
-    caption = f"🚀 Kote went on a meme coin raid and hauled in +{earned} coins! Total: {pet['coins']}"
-    await update.message.reply_animation(animation=GIFS["raid"], caption=caption)
+    pet['coins'] += 50
+    await update.message.reply_animation(animation=GIFS["raid"], caption=f"Raid successful! +50 coins. Total: {pet['coins']}")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pet_data:
-        await update.message.reply_text("No pets on the leaderboard yet!")
+        await update.message.reply_text("No pets yet!")
         return
+    text = "🏆 Leaderboard 🏆\n\n"
+    for p in pet_data.values():
+        text += f"{p['name']} — 🪙 {p['coins']} coins\n"
+    await update.message.reply_text(text)
+
+def main():
+    if not TOKEN:
+        raise ValueError("TOKEN missing")
     
-    sorted_pets = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)
-    text = "🏆 **Kote Wealth Leaderboard** 🏆\n\n"
-    for i, p in enumerate(sorted_pets[:10], 1
+    threading.Thread(target=run_health_server, daemon=True).start()
+    
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("feed", feed))
+    app.add_handler(CommandHandler("play", play))
+    app.add_handler(CommandHandler("raid", raid))
+    app.add_handler(CommandHandler("leaderboard", leaderboard))
+    app.add_handler(CallbackQueryHandler(button_handler))
+    
+    app.run_polling(drop_pending_updates=True, timeout=10)
+
+if __name__ == "__main__":
+    main()
