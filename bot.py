@@ -71,9 +71,7 @@ async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = f"Nom nom! 🥩 You fed Kote. Hunger is now {pet['hunger']}/100!"
     await update.message.reply_animation(animation=GIFS["feed"], caption=caption)
 
-# --- INTERACTIVE PLAY COMMAND ---
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Sends an interactive button that the user has to tap
     keyboard = [
         [InlineKeyboardButton("🎾 Throw Ball", callback_data="play_ball")],
         [InlineKeyboardButton("🧶 Laser Pointer", callback_data="play_laser")]
@@ -81,10 +79,9 @@ async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Choose how you want to interact with Kote:", reply_markup=reply_markup)
 
-# Handle the button click response
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer() # Acknowledge button click so loading spinner stops
+    await query.answer()
     
     user = query.from_user
     pet = get_pet(user.id, user.first_name)
@@ -100,7 +97,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         text = "Kote got distracted!"
 
-    # Edit the message with the result and animation
     await query.edit_message_text(text=text)
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -135,15 +131,12 @@ def main():
     
     app = ApplicationBuilder().token(TOKEN).build()
     
-    # Register command handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("feed", feed))
     app.add_handler(CommandHandler("play", play))
     app.add_handler(CommandHandler("raid", raid))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
-    
-    # Register click handler for buttons
     app.add_handler(CallbackQueryHandler(button_handler))
     
     app.add_error_handler(error_handler)
@@ -151,5 +144,5 @@ def main():
     print("Kote simulator bot is running...")
     app.run_polling(drop_pending_updates=True, timeout=10)
 
-if __name__ == "main":
+if __name__ == "__main__":
     main()
