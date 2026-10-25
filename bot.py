@@ -1,5 +1,6 @@
 import os
 import time
+import random
 import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -16,11 +17,12 @@ feed_cooldowns = {}
 play_cooldowns = {}
 COOLDOWN_TIME = 3600  # 1 hour in seconds
 
+# 100% Cat-Related GIFs
 GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
     "feed": "https://media.giphy.com/media/12bjQ7uaduAPcc/giphy.gif",
     "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
-    "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpucXB3bXVmNXE2M2Q1MWg0djhyODhxOHpucXB3bXVmNXE2M2Q1MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Lq0h93752f6J9tijrh/giphy.gif"
+    "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif"
 }
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -66,8 +68,8 @@ async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"⏳ Kote is still full! Feed again in {remaining} minutes.")
             return
     keyboard = [
-        [InlineKeyboardButton("🥩 Steak (+25)", callback_data="feed_steak")],
-        [InlineKeyboardButton("🐟 Fish (+15)", callback_data="feed_fish")]
+        [InlineKeyboardButton("🥩 Steak", callback_data="feed_steak")],
+        [InlineKeyboardButton("🐟 Fish", callback_data="feed_fish")]
     ]
     await update.message.reply_text("Choose food:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -81,8 +83,8 @@ async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"⏳ Kote is resting! Play again in {remaining} minutes.")
             return
     keyboard = [
-        [InlineKeyboardButton("🎾 Ball (+15)", callback_data="play_ball")],
-        [InlineKeyboardButton("🔴 Laser (+20)", callback_data="play_laser")]
+        [InlineKeyboardButton("🎾 Ball", callback_data="play_ball")],
+        [InlineKeyboardButton("🔴 Laser", callback_data="play_laser")]
     ]
     await update.message.reply_text("Choose activity:", reply_markup=InlineKeyboardMarkup(keyboard))
 
@@ -98,11 +100,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text="⏳ Too soon! Kote is still digesting.")
             return
         feed_cooldowns[user_id] = current_time
-        if query.data == "feed_steak":
-            pet['hunger'] = min(100, pet['hunger'] + 25)
-        elif query.data == "feed_fish":
-            pet['hunger'] = min(100, pet['hunger'] + 15)
-        await query.edit_message_text(text=f"Nom nom! Hunger: {pet['hunger']}/100")
+        
+        # Random hunger gain (hidden numbers)
+        gain = random.randint(10, 30)
+        pet['hunger'] = min(100, pet['hunger'] + gain)
+        
+        await query.edit_message_text(text="Nom nom! Kote thoroughly enjoyed the meal and looks satisfied.")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["feed"])
         
     elif query.data.startswith("play_"):
@@ -110,20 +113,22 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text="⏳ Too soon! Kote needs a nap.")
             return
         play_cooldowns[user_id] = current_time
-        if query.data == "play_ball":
-            pet['happiness'] = min(100, pet['happiness'] + 15)
-            pet['coins'] += 10
-        elif query.data == "play_laser":
-            pet['happiness'] = min(100, pet['happiness'] + 20)
-            pet['coins'] += 15
-        await query.edit_message_text(text=f"Played! Happiness: {pet['happiness']}/100, Coins: {pet['coins']}")
+        
+        # Random happiness and coin gain (hidden numbers)
+        happy_gain = random.randint(10, 25)
+        coin_gain = random.randint(5, 20)
+        pet['happiness'] = min(100, pet['happiness'] + happy_gain)
+        pet['coins'] += coin_gain
+        
+        await query.edit_message_text(text="Woohoo! That was a super fun play session with Kote!")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["play"])
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    pet['coins'] += 50
-    await update.message.reply_animation(animation=GIFS["raid"], caption=f"Raid successful! +50 coins. Total: {pet['coins']}")
+    raid_coins = random.randint(30, 80)
+    pet['coins'] += raid_coins
+    await update.message.reply_animation(animation=GIFS["raid"], caption="🚀 Kote successfully completed a meme coin raid and brought back some loot!")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pet_data:
