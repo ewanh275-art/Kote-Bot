@@ -15,7 +15,9 @@ pet_data = {}
 
 feed_cooldowns = {}
 play_cooldowns = {}
+daily_cooldowns = {}
 COOLDOWN_TIME = 3600  # 1 hour in seconds
+DAILY_COOLDOWN = 86400  # 24 hours in seconds
 
 GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
@@ -42,17 +44,22 @@ def get_pet(user_id, username):
             "name": username or "Player",
             "hunger": 50,
             "happiness": 50,
-            "coins": 100
+            "coins": 100,
+            "streak": 0,
+            "last_login": 0
         }
     return pet_data[user_id]
 
-def get_time_remaining(last_time):
+def get_time_remaining(last_time, total_time=COOLDOWN_TIME):
     elapsed = time.time() - last_time
-    remaining = int(COOLDOWN_TIME - elapsed)
+    remaining = int(total_time - elapsed)
     if remaining <= 0:
         return "0 minutes"
-    mins = remaining // 60
+    hours = remaining // 3600
+    mins = (remaining % 3600) // 60
     secs = remaining % 60
+    if hours > 0:
+        return f"{hours}h {mins}m"
     if mins > 0:
         return f"{mins} min {secs} sec"
     return f"{secs} sec"
@@ -60,122 +67,72 @@ def get_time_remaining(last_time):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
-    caption = "Welcome to Kote Pet Simulator! 🐾\nCommands:\n/kote - Look at Kote\n/stats - Check stats\n/feed - Feed pet (1h cooldown)\n/play - Play with pet (1h cooldown)\n/raid - Raid coins\n/leaderboard - Top players"
+    caption = (
+        "Welcome to Kote Pet Simulator! 🐾🔥\n\n"
+        "Commands:\n"
+        "/kote - Look at Kote\n"
+        "/stats - Check pet stats & events\n"
+        "/daily - Claim daily login streak bonus 🎁\n"
+        "/feed - Feed pet (1h cooldown)\n"
+        "/play - Play with pet (1h cooldown)\n"
+        "/raid - Meme coin raid 🚀\n"
+        "/leaderboard - Top token holders 🏆"
+    )
     await update.message.reply_animation(animation=GIFS["start"], caption=caption)
 
-# --- NEW KOTE COMMAND ---
 async def kote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    caption = f"🐾 Here is your meme coin mascot, {pet['name']}! Keep him happy and fed to grow your wealth. 🪙"
+    caption = f"🐾 Here is your meme coin mascot, {pet['name']}! Keep him active to maximize your token bag. 🪙"
     await update.message.reply_animation(animation=GIFS["kote"], caption=caption)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    text = f"📊 {pet['name']}'s Stats:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happiness']}/100\n🪙 Coins / Total Score: {pet['coins']:,}"
+    
+    # 20% chance for a random status event when checking stats
+    event_text = ""
+    if random.random() < 0.2:
+        event = random.choice([
+            ("💡 Kote stared into the matrix and sniffed out a hidden airdrop! +25 bonus coins.", 25),
+            ("😴 Kote took a long nap and dreamed about bull markets. Peaceful vibes!", 0),
+            ("🔍 Kote inspected your portfolio and found loose change down the couch cushions! +10 coins.", 10)
+        ])
+        pet['coins'] += event[1]
+        event_text = f"\n\n✨ **Random Event**: {event[0]}"
+
+    text = (
+        f"📊 **{pet['name']}'s Stats**:\n"
+        f"🥩 Hunger: {pet['hunger']}/100\n"
+        f"🎾 Happiness: {pet['happiness']}/100\n"
+        f"🔥 Daily Streak: {pet['streak']} days\n"
+        f"🪙 Total Token Score: {pet['coins']:,}{event_text}"
+    )
     await update.message.reply_text(text)
 
-async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id in feed_cooldowns:
-        timeLeft = get_time_remaining(feed_cooldowns[user_id])
-        if timeLeft != "0 minutes":
-            await update.message.reply_text(f"⏳ Kote is still full! You can feed again in {timeLeft}.")
-            return
-    keyboard = [
-        [InlineKeyboardButton("🥩 Steak", callback_data="feed_steak")],
-        [InlineKeyboardButton("🐟 Fish", callback_data="feed_fish")]
-    ]
-    await update.message.reply_text("Choose food:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id in play_cooldowns:
-        timeLeft = get_time_remaining(play_cooldowns[user_id])
-        if timeLeft != "0 minutes":
-            await update.message.reply_text(f"⏳ Kote is resting! You can play again in {timeLeft}.")
-            return
-    keyboard = [
-        [InlineKeyboardButton("🎾 Ball", callback_data="play_ball")],
-        [InlineKeyboardButton("🔴 Laser", callback_data="play_laser")]
-    ]
-    await update.message.reply_text("Choose activity:", reply_markup=InlineKeyboardMarkup(keyboard))
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    pet = get_pet(user_id, query.from_user.first_name)
-    current_time = time.time()
-    
-    if query.data.startswith("feed_"):
-        if user_id in feed_cooldowns:
-            timeLeft = get_time_remaining(feed_cooldowns[user_id])
-            if timeLeft != "0 minutes":
-                await query.edit_message_text(text=f"⏳ Too soon! Kote is still digesting. Try again in {timeLeft}.")
-                return
-        feed_cooldowns[user_id] = current_time
-        
-        gain = random.randint(10, 30)
-        pet['hunger'] = min(100, pet['hunger'] + gain)
-        
-        await query.edit_message_text(text=f"🥩 Nom nom! Kote devoured the meal. \n➕ Gained +{gain} Hunger! (Total Hunger: {pet['hunger']}/100)")
-        await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["feed"])
-        
-    elif query.data.startswith("play_"):
-        if user_id in play_cooldowns:
-            timeLeft = get_time_remaining(play_cooldowns[user_id])
-            if timeLeft != "0 minutes":
-                await query.edit_message_text(text=f"⏳ Too soon! Kote needs a nap. Try again in {timeLeft}.")
-                return
-        play_cooldowns[user_id] = current_time
-        
-        happy_gain = random.randint(10, 25)
-        coin_gain = random.randint(5, 20)
-        pet['happiness'] = min(100, pet['happiness'] + happy_gain)
-        pet['coins'] += coin_gain
-        
-        await query.edit_message_text(text=f"🎉 Fun playtime! \n➕ Gained +{happy_gain} Happiness! (Total: {pet['happiness']}/100)\n🪙 Earned +{coin_gain} Coins! (Total Coins/Score: {pet['coins']:,})")
-        await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["play"])
-
-async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    raid_coins = random.randint(50, 200)
-    pet['coins'] += raid_coins
-    await update.message.reply_animation(animation=GIFS["raid"], caption=f"🚀 Kote successfully completed a meme coin raid and brought back +{raid_coins:,} coins! Total Score: {pet['coins']:,}")
+    current_time = time.time()
+    
+    last_login = pet['last_login']
+    # If more than 48 hours passed, reset streak
+    if last_login > 0 and (current_time - last_login) > (DAILY_COOLDOWN * 2):
+        pet['streak'] = 0
 
-async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not pet_data:
-        await update.message.reply_text("No pets on the leaderboard yet!")
-        return
-    
-    sorted_pets = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)
-    
-    text = "🏆 **Kote Unlimited Token Leaderboard** 🏆\n\n"
-    for i, p in enumerate(sorted_pets[:10], 1):
-        text += f"{i}. {p['name']} — 🪙 {p['coins']:,} coins\n"
-        
-    await update.message.reply_text(text)
+    if user.id in daily_cooldowns:
+        elapsed = current_time - daily_cooldowns[user.id]
+        if elapsed < DAILY_COOLDOWN:
+            timeLeft = get_time_remaining(daily_cooldowns[user.id], DAILY_COOLDOWN)
+            await update.message.reply_text(f"⏳ You already claimed your daily bonus! Come back in {timeLeft}.")
+            return
 
-def main():
-    if not TOKEN:
-        raise ValueError("TOKEN missing")
-    threading.Thread(target=run_health_server, daemon=True).start()
-    app = ApplicationBuilder().token(TOKEN).build()
+    daily_cooldowns[user.id] = current_time
+    pet['last_login'] = current_time
+    pet['streak'] += 1
     
-    # Register all command handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("kote", kote_command))
-    app.add_handler(CommandHandler("stats", stats))
-    app.add_handler(CommandHandler("feed", feed))
-    app.add_handler(CommandHandler("play", play))
-    app.add_handler(CommandHandler("raid", raid))
-    app.add_handler(CommandHandler("leaderboard", leaderboard))
-    app.add_handler(CallbackQueryHandler(button_handler))
+    reward = 50 * pet['streak']
+    pet['coins'] += reward
     
-    app.run_polling(drop_pending_updates=True, timeout=10)
-
-if __name__ == "__main__":
-    main()
+    await update.message.reply_text(
+        f"🎁 **Daily Streak Claim
