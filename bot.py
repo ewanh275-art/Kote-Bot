@@ -119,4 +119,108 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if user.id in feed_cooldowns and time.time() -
+    if user.id in feed_cooldowns and time.time() - feed_cooldowns[user.id] < COOLDOWN:
+        t = get_timeLeft(feed_cooldowns[user.id], COOLDOWN)
+        await update.message.reply_text(f"⏳ Full! Feed again in {t}.")
+        return
+    b1 = InlineKeyboardButton("🥩 Steak", callback_data="feed_steak")
+    b2 = InlineKeyboardButton("🐟 Fish", callback_data="feed_fish")
+    kb = InlineKeyboardMarkup([[b1, b2]])
+    await update.message.reply_text("Choose food:", reply_markup=kb)
+
+async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    if user.id in play_cooldowns and time.time() - play_cooldowns[user.id] < COOLDOWN:
+        t = get_timeLeft(play_cooldowns[user.id], COOLDOWN)
+        await update.message.reply_text(f"⏳ Resting! Play again in {t}.")
+        return
+    b1 = InlineKeyboardButton("🎾 Ball", callback_data="play_ball")
+    b2 = InlineKeyboardButton("🔴 Laser", callback_data="play_laser")
+    kb = InlineKeyboardMarkup([[b1, b2]])
+    await update.message.reply_text("Choose activity:", reply_markup=kb)
+
+async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    pet = get_pet(user.id, user.first_name)
+    now = time.time()
+    chat_id = query.message.chat_id
+    
+    if query.data.startswith("feed_"):
+        if user.id in feed_cooldowns and now - feed_cooldowns[user.id] < COOLDOWN:
+            await query.edit_message_text("⏳ Too soon!")
+            return
+        feed_cooldowns[user.id] = now
+        gain = random.randint(10, 30)
+        pet['hunger'] += gain
+        if pet['hunger'] > 100:
+            pet['hunger'] = 100
+        await query.edit_message_text(f"🥩 Fed! +{gain} Hunger (Total: {pet['hunger']}/100)")
+        anim = random.choice(GIFS["feed"])
+        await context.bot.send_animation(chat_id=chat_id, animation=anim)
+        
+    elif query.data.startswith("play_"):
+        if user.id in play_cooldowns and now - play_cooldowns[user.id] < COOLDOWN:
+            await query.edit_message_text("⏳ Too soon!")
+            return
+        play_cooldowns[user.id] = now
+        h_gain = random.randint(10, 25)
+        c_gain = random.randint(5, 20)
+        pet['happy'] += h_gain
+        if pet['happy'] > 100:
+            pet['happy'] = 100
+        pet['coins'] += c_gain
+        await query.edit_message_text(f"🎉 Played! +{h_gain} Happy, +{c_gain} Coins (Score: {pet['coins']:,})")
+        anim = random.choice(GIFS["play"])
+        await context.bot.send_animation(chat_id=chat_id, animation=anim)
+
+async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pet = get_pet(user.id, user.first_name)
+    roll = random.random()
+    anim = random.choice(GIFS["raid"])
+    if roll < 0.15:
+        loss = random.randint(20, 50)
+        pet['coins'] = max(0, pet['coins'] - loss)
+        msg = f"⚠️ Rug-pull! Lost -{loss} coins. Score: {pet['coins']:,}"
+        await update.message.reply_animation(animation=anim, caption=msg)
+    elif roll > 0.85:
+        win = random.randint(300, 600)
+        pet['coins'] += win
+        msg = f"💎 JACKPOT! Won +{win:,} coins! Score: {pet['coins']:,}"
+        await update.message.reply_animation(animation=anim, caption=msg)
+    else:
+        gain = random.randint(50, 200)
+        pet['coins'] += gain
+        msg = f"🚀 Raid success! +{gain:,} coins. Score: {pet['coins']:,}"
+        await update.message.reply_animation(animation=anim, caption=msg)
+
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not pet_data:
+        await update.message.reply_text("No pets yet!")
+        return
+    top = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)[:10]
+    text = "🏆 **Unlimited Token Leaderboard** 🏆\n\n"
+    for i, p in enumerate(top, 1):
+        text += f"{i}. {p['name']} — 🪙 {p['coins']:,} (🔥 {p['streak']}d)\n"
+    await update.message.reply_text(text)
+
+def main():
+    if not TOKEN:
+        raise ValueError("TOKEN missing")
+    threading.Thread(target=run_server, daemon=True).start()
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("kote", kote))
+    app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("daily", daily))
+    app.add_handler(CommandHandler("feed", feed))
+    app.add_handler(CommandHandler("play", play))
+    app.add_handler(CommandHandler("raid", raid))
+    app.add_handler(CommandHandler("leaderboard", leaderboard))
+    app.add_handler(CallbackQueryHandler(buttons))
+    app.run_polling(drop_pending_updates=True, timeout=10)
+
+if __name__ == "__main__":
+    main()
