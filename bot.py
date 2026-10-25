@@ -2,8 +2,8 @@ import os
 import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
 
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -11,9 +11,8 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 TOKEN = os.getenv("TOKEN")
 pet_data = {}
 
-# --- GIF URL EXAMPLES (You can replace these with your own favorite GIF links) ---
 GIFS = {
-    "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
+    "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
     "feed": "https://media.giphy.com/media/GeimIFW00vOKY/giphy.gif",
     "play": "https://media.giphy.com/media/13CoXPo7CojEDC/giphy.gif",
     "raid": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"
@@ -40,7 +39,7 @@ def get_pet(user_id, username):
         }
     return pet_data[user_id]
 
-# --- COMMAND FUNCTIONS WITH GIFS ---
+# --- COMMAND FUNCTIONS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
@@ -49,7 +48,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Commands:\n"
         "/stats - Check Kote's status\n"
         "/feed - Feed your pet\n"
-        "/play - Play with your pet\n"
+        "/play - Open interactive play menu\n"
         "/raid - Go on a meme coin raid\n"
         "/leaderboard - View top wealthy pets"
     )
@@ -72,13 +71,37 @@ async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = f"Nom nom! 🥩 You fed Kote. Hunger is now {pet['hunger']}/100!"
     await update.message.reply_animation(animation=GIFS["feed"], caption=caption)
 
+# --- INTERACTIVE PLAY COMMAND ---
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
+    # Sends an interactive button that the user has to tap
+    keyboard = [
+        [InlineKeyboardButton("🎾 Throw Ball", callback_data="play_ball")],
+        [InlineKeyboardButton("🧶 Laser Pointer", callback_data="play_laser")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Choose how you want to interact with Kote:", reply_markup=reply_markup)
+
+# Handle the button click response
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer() # Acknowledge button click so loading spinner stops
+    
+    user = query.from_user
     pet = get_pet(user.id, user.first_name)
-    pet['happiness'] = min(100, pet['happiness'] + 20)
-    pet['coins'] += 10
-    caption = f"🎉 You played with Kote! Happiness is {pet['happiness']}/100 and you earned +10 coins!"
-    await update.message.reply_animation(animation=GIFS["play"], caption=caption)
+    
+    if query.data == "play_ball":
+        pet['happiness'] = min(100, pet['happiness'] + 15)
+        pet['coins'] += 10
+        text = f"🎾 You threw the ball and Kote sprinted after it! Happiness: {pet['happiness']}/100, Coins: +10 🪙"
+    elif query.data == "play_laser":
+        pet['happiness'] = min(100, pet['happiness'] + 20)
+        pet['coins'] += 15
+        text = f"🔴 You flashed the laser pointer. Kote went wild! Happiness: {pet['happiness']}/100, Coins: +15 🪙"
+    else:
+        text = "Kote got distracted!"
+
+    # Edit the message with the result and animation
+    await query.edit_message_text(text=text)
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -112,16 +135,21 @@ def main():
     
     app = ApplicationBuilder().token(TOKEN).build()
     
+    # Register command handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("feed", feed))
     app.add_handler(CommandHandler("play", play))
     app.add_handler(CommandHandler("raid", raid))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
+    
+    # Register click handler for buttons
+    app.add_handler(CallbackQueryHandler(button_handler))
+    
     app.add_error_handler(error_handler)
     
     print("Kote simulator bot is running...")
     app.run_polling(drop_pending_updates=True, timeout=10)
 
-if __name__ == "__main__":
+if __name__ == "main":
     main()
