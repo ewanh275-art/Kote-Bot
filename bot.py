@@ -18,12 +18,33 @@ daily_cooldowns = {}
 COOLDOWN = 3600
 DAILY_CD = 86400
 
+# Lists of multiple cat GIFs for random rotation
 GIFS = {
-    "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
-    "feed": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
-    "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
-    "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif",
-    "kote": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif"
+    "start": [
+        "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
+        "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
+        "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif"
+    ],
+    "kote": [
+        "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
+        "https://media.giphy.com/media/GeimIFW00vOKY/giphy.gif",
+        "https://media.giphy.com/media/13CoXPo7CojEDC/giphy.gif"
+    ],
+    "feed": [
+        "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
+        "https://media.giphy.com/media/GeimIFW00vOKY/giphy.gif",
+        "https://media.giphy.com/media/12bjQ7uaduAPcc/giphy.gif"
+    ],
+    "play": [
+        "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
+        "https://media.giphy.com/media/13CoXPo7CojEDC/giphy.gif",
+        "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpucXB3bXVmNXE2M2Q1MWg0djhyODhxOHpucXB3bXVmNXE2M2Q1MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Lq0h93752f6J9tijrh/giphy.gif"
+    ],
+    "raid": [
+        "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif",
+        "https://media.giphy.com/media/Lq0h93752f6J9tijrh/giphy.gif",
+        "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"
+    ]
 }
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -57,13 +78,13 @@ def get_timeLeft(last, duration):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_pet(update.effective_user.id, update.effective_user.first_name)
     msg = "Welcome to Kote Pet Simulator! 🐾\nCommands: /kote /stats /daily /feed /play /raid /leaderboard"
-    anim = GIFS["start"]
+    anim = random.choice(GIFS["start"])
     await update.message.reply_animation(animation=anim, caption=msg)
 
 async def kote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pet = get_pet(update.effective_user.id, update.effective_user.first_name)
     msg = f"🐾 This is {pet['name']}! Keep him active to grow your meme bag."
-    anim = GIFS["kote"]
+    anim = random.choice(GIFS["kote"])
     await update.message.reply_animation(animation=anim, caption=msg)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -134,7 +155,7 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pet['hunger'] > 100:
             pet['hunger'] = 100
         await query.edit_message_text(f"🥩 Fed! +{gain} Hunger (Total: {pet['hunger']}/100)")
-        anim = GIFS["feed"]
+        anim = random.choice(GIFS["feed"])
         await context.bot.send_animation(chat_id=chat_id, animation=anim)
         
     elif query.data.startswith("play_"):
@@ -149,53 +170,8 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pet['happy'] = 100
         pet['coins'] += c_gain
         await query.edit_message_text(f"🎉 Played! +{h_gain} Happy, +{c_gain} Coins (Score: {pet['coins']:,})")
-        anim = GIFS["play"]
+        anim = random.choice(GIFS["play"])
         await context.bot.send_animation(chat_id=chat_id, animation=anim)
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    pet = get_pet(update.effective_user.id, update.effective_user.first_name)
-    roll = random.random()
-    if roll < 0.15:
-        loss = random.randint(20, 50)
-        pet['coins'] = max(0, pet['coins'] - loss)
-        msg = f"⚠️ Rug-pull! Lost -{loss} coins. Score: {pet['coins']:,}"
-        await update.message.reply_animation(animation=GIFS["raid"], caption=msg)
-    elif roll > 0.85:
-        win = random.randint(300, 600)
-        pet['coins'] += win
-        msg = f"💎 JACKPOT! Won +{win:,} coins! Score: {pet['coins']:,}"
-        await update.message.reply_animation(animation=GIFS["raid"], caption=msg)
-    else:
-        gain = random.randint(50, 200)
-        pet['coins'] += gain
-        msg = f"🚀 Raid success! +{gain:,} coins. Score: {pet['coins']:,}"
-        await update.message.reply_animation(animation=GIFS["raid"], caption=msg)
-
-async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not pet_data:
-        await update.message.reply_text("No pets yet!")
-        return
-    top = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)[:10]
-    text = "🏆 **Unlimited Token Leaderboard** 🏆\n\n"
-    for i, p in enumerate(top, 1):
-        text += f"{i}. {p['name']} — 🪙 {p['coins']:,} (🔥 {p['streak']}d)\n"
-    await update.message.reply_text(text)
-
-def main():
-    if not TOKEN:
-        raise ValueError("TOKEN missing")
-    threading.Thread(target=run_server, daemon=True).start()
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("kote", kote))
-    app.add_handler(CommandHandler("stats", stats))
-    app.add_handler(CommandHandler("daily", daily))
-    app.add_handler(CommandHandler("feed", feed))
-    app.add_handler(CommandHandler("play", play))
-    app.add_handler(CommandHandler("raid", raid))
-    app.add_handler(CommandHandler("leaderboard", leaderboard))
-    app.add_handler(CallbackQueryHandler(buttons))
-    app.run_polling(drop_pending_updates=True, timeout=10)
-
-if __name__ == "__main__":
-    main()
+    pet = get_pet(update.effective_user.id, update.effective_user.first_name
