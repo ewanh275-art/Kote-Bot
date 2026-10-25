@@ -17,11 +17,10 @@ feed_cooldowns = {}
 play_cooldowns = {}
 COOLDOWN_TIME = 3600  # 1 hour in seconds
 
-# 100% Cat-Related GIFs (including dedicated cat eating GIF)
 GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
-    "feed": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",   # Dedicated cat eating GIF
-    "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",   # Cat playing GIF
+    "feed": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
+    "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
     "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif"
 }
 
@@ -66,7 +65,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    text = f"📊 {pet['name']}'s Stats:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happiness']}/100\nCoins: {pet['coins']}"
+    text = f"📊 {pet['name']}'s Stats:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happiness']}/100\n🪙 Coins / Total Score: {pet['coins']:,}"
     await update.message.reply_text(text)
 
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -129,23 +128,28 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pet['happiness'] = min(100, pet['happiness'] + happy_gain)
         pet['coins'] += coin_gain
         
-        await query.edit_message_text(text=f"🎉 Fun playtime! \n➕ Gained +{happy_gain} Happiness! (Total: {pet['happiness']}/100)\n🪙 Earned +{coin_gain} Coins! (Total: {pet['coins']})")
+        await query.edit_message_text(text=f"🎉 Fun playtime! \n➕ Gained +{happy_gain} Happiness! (Total: {pet['happiness']}/100)\n🪙 Earned +{coin_gain} Coins! (Total Coins/Score: {pet['coins']:,})")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["play"])
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
-    raid_coins = random.randint(30, 80)
+    raid_coins = random.randint(50, 200)
     pet['coins'] += raid_coins
-    await update.message.reply_animation(animation=GIFS["raid"], caption=f"🚀 Kote successfully completed a meme coin raid and brought back +{raid_coins} coins! Total: {pet['coins']}")
+    await update.message.reply_animation(animation=GIFS["raid"], caption=f"🚀 Kote successfully completed a meme coin raid and brought back +{raid_coins:,} coins! Total Score: {pet['coins']:,}")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pet_data:
-        await update.message.reply_text("No pets yet!")
+        await update.message.reply_text("No pets on the leaderboard yet!")
         return
-    text = "🏆 Leaderboard 🏆\n\n"
-    for p in pet_data.values():
-        text += f"{p['name']} — 🪙 {p['coins']} coins\n"
+    
+    # Sort pets by coins in descending order (unlimited scores)
+    sorted_pets = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)
+    
+    text = "🏆 **Kote Unlimited Token Leaderboard** 🏆\n\n"
+    for i, p in enumerate(sorted_pets[:10], 1):
+        text += f"{i}. {p['name']} — 🪙 {p['coins']:,} coins\n"
+        
     await update.message.reply_text(text)
 
 def main():
