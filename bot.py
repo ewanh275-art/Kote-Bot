@@ -17,11 +17,11 @@ feed_cooldowns = {}
 play_cooldowns = {}
 COOLDOWN_TIME = 3600  # 1 hour in seconds
 
-# 100% Cat-Related GIFs
+# 100% Cat-Related GIFs (including dedicated cat eating GIF)
 GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
-    "feed": "https://media.giphy.com/media/12bjQ7uaduAPcc/giphy.gif",
-    "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
+    "feed": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",   # Dedicated cat eating GIF
+    "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",   # Cat playing GIF
     "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif"
 }
 
@@ -46,6 +46,17 @@ def get_pet(user_id, username):
         }
     return pet_data[user_id]
 
+def get_time_remaining(last_time):
+    elapsed = time.time() - last_time
+    remaining = int(COOLDOWN_TIME - elapsed)
+    if remaining <= 0:
+        return "0 minutes"
+    mins = remaining // 60
+    secs = remaining % 60
+    if mins > 0:
+        return f"{mins} min {secs} sec"
+    return f"{secs} sec"
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
@@ -60,12 +71,10 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    current_time = time.time()
     if user_id in feed_cooldowns:
-        elapsed = current_time - feed_cooldowns[user_id]
-        if elapsed < COOLDOWN_TIME:
-            remaining = int((COOLDOWN_TIME - elapsed) / 60)
-            await update.message.reply_text(f"⏳ Kote is still full! Feed again in {remaining} minutes.")
+        timeLeft = get_time_remaining(feed_cooldowns[user_id])
+        if timeLeft != "0 minutes":
+            await update.message.reply_text(f"⏳ Kote is still full! You can feed again in {timeLeft}.")
             return
     keyboard = [
         [InlineKeyboardButton("🥩 Steak", callback_data="feed_steak")],
@@ -75,12 +84,10 @@ async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    current_time = time.time()
     if user_id in play_cooldowns:
-        elapsed = current_time - play_cooldowns[user_id]
-        if elapsed < COOLDOWN_TIME:
-            remaining = int((COOLDOWN_TIME - elapsed) / 60)
-            await update.message.reply_text(f"⏳ Kote is resting! Play again in {remaining} minutes.")
+        timeLeft = get_time_remaining(play_cooldowns[user_id])
+        if timeLeft != "0 minutes":
+            await update.message.reply_text(f"⏳ Kote is resting! You can play again in {timeLeft}.")
             return
     keyboard = [
         [InlineKeyboardButton("🎾 Ball", callback_data="play_ball")],
@@ -96,31 +103,33 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_time = time.time()
     
     if query.data.startswith("feed_"):
-        if user_id in feed_cooldowns and current_time - feed_cooldowns[user_id] < COOLDOWN_TIME:
-            await query.edit_message_text(text="⏳ Too soon! Kote is still digesting.")
-            return
+        if user_id in feed_cooldowns:
+            timeLeft = get_time_remaining(feed_cooldowns[user_id])
+            if timeLeft != "0 minutes":
+                await query.edit_message_text(text=f"⏳ Too soon! Kote is still digesting. Try again in {timeLeft}.")
+                return
         feed_cooldowns[user_id] = current_time
         
-        # Random hunger gain (hidden numbers)
         gain = random.randint(10, 30)
         pet['hunger'] = min(100, pet['hunger'] + gain)
         
-        await query.edit_message_text(text="Nom nom! Kote thoroughly enjoyed the meal and looks satisfied.")
+        await query.edit_message_text(text=f"🥩 Nom nom! Kote devoured the meal. \n➕ Gained +{gain} Hunger! (Total Hunger: {pet['hunger']}/100)")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["feed"])
         
     elif query.data.startswith("play_"):
-        if user_id in play_cooldowns and current_time - play_cooldowns[user_id] < COOLDOWN_TIME:
-            await query.edit_message_text(text="⏳ Too soon! Kote needs a nap.")
-            return
+        if user_id in play_cooldowns:
+            timeLeft = get_time_remaining(play_cooldowns[user_id])
+            if timeLeft != "0 minutes":
+                await query.edit_message_text(text=f"⏳ Too soon! Kote needs a nap. Try again in {timeLeft}.")
+                return
         play_cooldowns[user_id] = current_time
         
-        # Random happiness and coin gain (hidden numbers)
         happy_gain = random.randint(10, 25)
         coin_gain = random.randint(5, 20)
         pet['happiness'] = min(100, pet['happiness'] + happy_gain)
         pet['coins'] += coin_gain
         
-        await query.edit_message_text(text="Woohoo! That was a super fun play session with Kote!")
+        await query.edit_message_text(text=f"🎉 Fun playtime! \n➕ Gained +{happy_gain} Happiness! (Total: {pet['happiness']}/100)\n🪙 Earned +{coin_gain} Coins! (Total: {pet['coins']})")
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["play"])
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -128,7 +137,7 @@ async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pet = get_pet(user.id, user.first_name)
     raid_coins = random.randint(30, 80)
     pet['coins'] += raid_coins
-    await update.message.reply_animation(animation=GIFS["raid"], caption="🚀 Kote successfully completed a meme coin raid and brought back some loot!")
+    await update.message.reply_animation(animation=GIFS["raid"], caption=f"🚀 Kote successfully completed a meme coin raid and brought back +{raid_coins} coins! Total: {pet['coins']}")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pet_data:
