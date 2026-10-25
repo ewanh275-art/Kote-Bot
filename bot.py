@@ -38,21 +38,31 @@ def run_server():
 
 def get_pet(uid, name):
     if uid not in pet_data:
-        pet_data[uid] = {"name": name or "Player", "hunger": 50, "happy": 50, "coins": 100, "streak": 0, "last_login": 0}
+        pet_data[uid] = {
+            "name": name or "Player",
+            "hunger": 50,
+            "happy": 50,
+            "coins": 100,
+            "streak": 0,
+            "last_login": 0
+        }
     return pet_data[uid]
 
 def get_timeLeft(last, duration):
     rem = int(duration - (time.time() - last))
-    if rem <= 0: return "0"
+    if rem <= 0:
+        return "0"
     return f"{rem // 3600}h {(rem % 3600) // 60}m"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     get_pet(update.effective_user.id, update.effective_user.first_name)
-    await update.message.reply_animation(animation=GIFS["start"], caption="Welcome to Kote Pet Simulator! 🐾\nCommands: /kote /stats /daily /feed /play /raid /leaderboard")
+    msg = "Welcome to Kote Pet Simulator! 🐾\nCommands: /kote /stats /daily /feed /play /raid /leaderboard"
+    await update.message.reply_animation(animation=GIFS["start"], caption=msg)
 
 async def kote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pet = get_pet(update.effective_user.id, update.effective_user.first_name)
-    await update.message.reply_animation(animation=GIFS["kote"], caption=f"🐾 This is {pet['name']}! Keep him active to grow your meme bag.")
+    msg = f"🐾 This is {pet['name']}! Keep him active to grow your meme bag."
+    await update.message.reply_animation(animation=GIFS["kote"], caption=msg)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pet = get_pet(update.effective_user.id, update.effective_user.first_name)
@@ -60,15 +70,17 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if random.random() < 0.2:
         bonus = random.choice([10, 25, 50])
         pet['coins'] += bonus
-        event_str = f"\n\n✨ Event: Kote found a hidden wallet! +{bonus} coins."
-    await update.message.reply_text(f"📊 Stats for {pet['name']}:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happy']}/100\nStreak: {pet['streak']}d\nScore: {pet['coins']:,}{event_str}")
+        event_str = f"\n\n✨ Event: Found wallet! +{bonus} coins."
+    msg = f"📊 Stats for {pet['name']}:\nHunger: {pet['hunger']}/100\nHappiness: {pet['happy']}/100\nStreak: {pet['streak']}d\nScore: {pet['coins']:,}{event_str}"
+    await update.message.reply_text(msg)
 
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     pet = get_pet(uid, update.effective_user.first_name)
     now = time.time()
     if uid in daily_cooldowns and now - daily_cooldowns[uid] < DAILY_CD:
-        await update.message.reply_text(f"⏳ Come back in {get_timeLeft(daily_cooldowns[uid], DAILY_CD)} for your daily reward!")
+        t = get_timeLeft(daily_cooldowns[uid], DAILY_CD)
+        await update.message.reply_text(f"⏳ Come back in {t} for daily reward!")
         return
     if pet['last_login'] > 0 and now - pet['last_login'] > (DAILY_CD * 2):
         pet['streak'] = 0
@@ -77,21 +89,32 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pet['streak'] += 1
     reward = 50 * pet['streak']
     pet['coins'] += reward
-    await update.message.reply_text(f"🎁 Daily Claimed!\nStreak: {pet['streak']} days\nReward: +{reward:,} coins!\nTotal Score: {pet['coins']:,}")
+    msg = f"🎁 Daily Claimed!\nStreak: {pet['streak']} days\nReward: +{reward:,} coins!\nTotal Score: {pet['coins']:,}"
+    await update.message.reply_text(msg)
 
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if uid in feed_cooldowns and time.time() - feed_cooldowns[uid] < COOLDOWN:
-        await update.message.reply_text(f"⏳ Full! Feed again in {get_timeLeft(feed_cooldowns[uid], COOLDOWN)}.")
+        t = get_timeLeft(feed_cooldowns[uid], COOLDOWN)
+        await update.message.reply_text(f"⏳ Full! Feed again in {t}.")
         return
-    await update.message.reply_text("Choose food:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🥩 Steak", callback_data="feed_steak"), InlineKeyboardButton("🐟 Fish", callback_data="feed_fish")]]))
+    kb = [
+        [InlineKeyboardButton("🥩 Steak", callback_data="feed_steak")],
+        [InlineKeyboardButton("🐟 Fish", callback_data="feed_fish")]
+    ]
+    await update.message.reply_text("Choose food:", reply_markup=InlineKeyboardMarkup(kb))
 
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if uid in play_cooldowns and time.time() - play_cooldowns[uid] < COOLDOWN:
-        await update.message.reply_text(f"⏳ Resting! Play again in {get_timeLeft(play_cooldowns[uid], COOLDOWN)}.")
+        t = get_timeLeft(play_cooldowns[uid], COOLDOWN)
+        await update.message.reply_text(f"⏳ Resting! Play again in {t}.")
         return
-    await update.message.reply_text("Choose activity:", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🎾 Ball", callback_data="play_ball"), InlineKeyboardButton("🔴 Laser", callback_data="play_laser")]]))
+    kb = [
+        [InlineKeyboardButton("🎾 Ball", callback_data="play_ball")],
+        [InlineKeyboardButton("🔴 Laser", callback_data="play_laser")]
+    ]
+    await update.message.reply_text("Choose activity:", reply_markup=InlineKeyboardMarkup(kb))
 
 async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -106,4 +129,8 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         feed_cooldowns[uid] = now
         gain = random.randint(10, 30)
-        pet['hunger'] = min(100
+        pet['hunger'] += gain
+        if pet['hunger'] > 100:
+            pet['hunger'] = 100
+        await query.edit_message_text(f"🥩 Fed! +{gain} Hunger (Total: {pet['hunger']}/100)")
+        await context.bot.send_animation(chat_id=query.
