@@ -11,7 +11,6 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 TOKEN = os.getenv("TOKEN")
 pet_data = {}
 
-# --- DEDICATED GIFS FOR EACH ACTION ---
 GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
     "feed": "https://media.giphy.com/media/GeimIFW00vOKY/giphy.gif",
@@ -65,7 +64,6 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🪙 Coins: {pet['coins']}"
     )
 
-# --- INTERACTIVE FEED COMMAND ---
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🥩 Juicy Steak (+25 Hunger)", callback_data="feed_steak")],
@@ -74,7 +72,6 @@ async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Choose what to feed Kote:", reply_markup=reply_markup)
 
-# --- INTERACTIVE PLAY COMMAND ---
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🎾 Throw Ball (+15 Happy)", callback_data="play_ball")],
@@ -83,7 +80,6 @@ async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Choose how you want to play with Kote:", reply_markup=reply_markup)
 
-# --- UNIFIED BUTTON HANDLER FOR FEEDING & PLAYING ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -91,7 +87,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     pet = get_pet(user.id, user.first_name)
     
-    # Handle Feeding Choices
     if query.data == "feed_steak":
         pet['hunger'] = min(100, pet['hunger'] + 25)
         text = f"🥩 Nom nom! Kote devoured the steak. Hunger is now {pet['hunger']}/100!"
@@ -104,7 +99,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text=text)
         await context.bot.send_animation(chat_id=query.message.chat_id, animation=GIFS["feed"])
         
-    # Handle Playing Choices
     elif query.data == "play_ball":
         pet['happiness'] = min(100, pet['happiness'] + 15)
         pet['coins'] += 10
@@ -127,4 +121,11 @@ async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     caption = f"🚀 Kote went on a meme coin raid and hauled in +{earned} coins! Total: {pet['coins']}"
     await update.message.reply_animation(animation=GIFS["raid"], caption=caption)
 
-async def leaderboard(update: Update, context
+async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not pet_data:
+        await update.message.reply_text("No pets on the leaderboard yet!")
+        return
+    
+    sorted_pets = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)
+    text = "🏆 **Kote Wealth Leaderboard** 🏆\n\n"
+    for i, p in enumerate(sorted_pets[:10], 1
