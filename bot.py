@@ -21,7 +21,8 @@ GIFS = {
     "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
     "feed": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif",
     "play": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif",
-    "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif"
+    "raid": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnk0ZWRwYWlueGFnZXJreDN6djV0dG4zMWF0bzVvOXV2OGZsc3QybCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ico3bW6e6dMHe/giphy.gif",
+    "kote": "https://media.giphy.com/media/ICOgUNjpvO0PC/giphy.gif"
 }
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -59,8 +60,15 @@ def get_time_remaining(last_time):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
-    caption = "Welcome to Kote Pet Simulator! 🐾\nCommands:\n/stats\n/feed (1h cooldown)\n/play (1h cooldown)\n/raid\n/leaderboard"
+    caption = "Welcome to Kote Pet Simulator! 🐾\nCommands:\n/kote - Look at Kote\n/stats - Check stats\n/feed - Feed pet (1h cooldown)\n/play - Play with pet (1h cooldown)\n/raid - Raid coins\n/leaderboard - Top players"
     await update.message.reply_animation(animation=GIFS["start"], caption=caption)
+
+# --- NEW KOTE COMMAND ---
+async def kote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    pet = get_pet(user.id, user.first_name)
+    caption = f"🐾 Here is your meme coin mascot, {pet['name']}! Keep him happy and fed to grow your wealth. 🪙"
+    await update.message.reply_animation(animation=GIFS["kote"], caption=caption)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -143,7 +151,6 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("No pets on the leaderboard yet!")
         return
     
-    # Sort pets by coins in descending order (unlimited scores)
     sorted_pets = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)
     
     text = "🏆 **Kote Unlimited Token Leaderboard** 🏆\n\n"
@@ -157,13 +164,17 @@ def main():
         raise ValueError("TOKEN missing")
     threading.Thread(target=run_health_server, daemon=True).start()
     app = ApplicationBuilder().token(TOKEN).build()
+    
+    # Register all command handlers
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("kote", kote_command))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("feed", feed))
     app.add_handler(CommandHandler("play", play))
     app.add_handler(CommandHandler("raid", raid))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     app.add_handler(CallbackQueryHandler(button_handler))
+    
     app.run_polling(drop_pending_updates=True, timeout=10)
 
 if __name__ == "__main__":
