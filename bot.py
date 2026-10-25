@@ -1,31 +1,5 @@
 import os
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
-
-# Quiet noisy HTTP logs
-logging.basicConfig(level=logging.INFO)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
-# Securely pulls token from Koyeb environment settings
-TOKEN = os.getenv("TOKEN")
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Kote is alive and running 24/7 on the cloud! 🐾🔥")
-
-def main():
-    if not TOKEN:
-        raise ValueError("No TOKEN environment variable configured!")
-    
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    print("Kote bot is active and listening...")
-    app.run_polling(drop_pending_updates=True, timeout=10)
-
-if __name__ == "__main__":
-    main()
-import os
-import logging
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
@@ -35,9 +9,6 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 TOKEN = os.getenv("TOKEN")
-
-# In-memory storage for pets (User ID -> Stats)
-# In production later, you can hook this up to a database like SQLite or PostgreSQL
 pet_data = {}
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -61,18 +32,17 @@ def get_pet(user_id, username):
         }
     return pet_data[user_id]
 
-# --- PET COMMANDS ---
+# --- COMMAND FUNCTIONS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
     await update.message.reply_text(
         f"Welcome to Kote Pet Simulator, {user.first_name}! 🐾🔥\n\n"
-        "Your pet is born and ready on the cloud 24/7.\n"
         "Commands:\n"
         "/stats - Check Kote's status\n"
         "/feed - Feed your pet\n"
         "/play - Play with your pet\n"
-        "/raid - Go on a meme coin raid for coins\n"
+        "/raid - Go on a meme coin raid\n"
         "/leaderboard - View top wealthy pets"
     )
 
@@ -104,21 +74,23 @@ async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pet = get_pet(user.id, user.first_name)
     earned = 50
     pet['coins'] += earned
-    await update.message.reply_text(f"🚀 Kote went on a meme coin raid and successfully hauled in +{earned} coins! Total coins: {pet['coins']}")
+    await update.message.reply_text(f"🚀 Kote went on a meme coin raid and hauled in +{earned} coins! Total: {pet['coins']}")
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pet_data:
         await update.message.reply_text("No pets on the leaderboard yet!")
         return
     
-    # Sort players by coins descending
     sorted_pets = sorted(pet_data.values(), key=lambda x: x['coins'], reverse=True)
-    
     text = "🏆 **Kote Wealth Leaderboard** 🏆\n\n"
     for i, p in enumerate(sorted_pets[:10], 1):
         text += f"{i}. {p['name']} — 🪙 {p['coins']} coins\n"
     
     await update.message.reply_text(text)
+
+# Error catcher so the bot never crashes silently
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    logging.error(msg="Exception while handling an update:", exc_info=context.error)
 
 def main():
     if not TOKEN:
@@ -129,7 +101,7 @@ def main():
     
     app = ApplicationBuilder().token(TOKEN).build()
     
-    # Registering all handlers
+    # Register handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("feed", feed))
@@ -137,9 +109,11 @@ def main():
     app.add_handler(CommandHandler("raid", raid))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
     
+    # Register error handler to catch exceptions cleanly
+    app.add_error_handler(error_handler)
+    
     print("Kote simulator bot is running...")
     app.run_polling(drop_pending_updates=True, timeout=10)
 
 if __name__ == "__main__":
     main()
-app.run_polling(drop_pending_updates=True, timeout=10)
