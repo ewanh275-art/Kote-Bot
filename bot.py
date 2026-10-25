@@ -11,6 +11,14 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 TOKEN = os.getenv("TOKEN")
 pet_data = {}
 
+# --- GIF URL EXAMPLES (You can replace these with your own favorite GIF links) ---
+GIFS = {
+    "start": "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0ajV3cTV3bThqM2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3M2Z3JmY9Z19naWZfYnlfaWQmY3Q9Zw/3oriO0OEd9QIDdllqo/giphy.gif",
+    "feed": "https://media.giphy.com/media/GeimIFW00vOKY/giphy.gif",
+    "play": "https://media.giphy.com/media/13CoXPo7CojEDC/giphy.gif",
+    "raid": "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif"
+}
+
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -32,11 +40,11 @@ def get_pet(user_id, username):
         }
     return pet_data[user_id]
 
-# --- COMMAND FUNCTIONS ---
+# --- COMMAND FUNCTIONS WITH GIFS ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     get_pet(user.id, user.first_name)
-    await update.message.reply_text(
+    caption = (
         f"Welcome to Kote Pet Simulator, {user.first_name}! 🐾🔥\n\n"
         "Commands:\n"
         "/stats - Check Kote's status\n"
@@ -45,6 +53,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/raid - Go on a meme coin raid\n"
         "/leaderboard - View top wealthy pets"
     )
+    await update.message.reply_animation(animation=GIFS["start"], caption=caption)
 
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -60,21 +69,24 @@ async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
     pet['hunger'] = min(100, pet['hunger'] + 20)
-    await update.message.reply_text(f"Nom nom! 🥩 You fed Kote. Hunger is now {pet['hunger']}/100!")
+    caption = f"Nom nom! 🥩 You fed Kote. Hunger is now {pet['hunger']}/100!"
+    await update.message.reply_animation(animation=GIFS["feed"], caption=caption)
 
 async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
     pet['happiness'] = min(100, pet['happiness'] + 20)
     pet['coins'] += 10
-    await update.message.reply_text(f"🎉 You played with Kote! Happiness is {pet['happiness']}/100 and you earned +10 coins!")
+    caption = f"🎉 You played with Kote! Happiness is {pet['happiness']}/100 and you earned +10 coins!"
+    await update.message.reply_animation(animation=GIFS["play"], caption=caption)
 
 async def raid(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     pet = get_pet(user.id, user.first_name)
     earned = 50
     pet['coins'] += earned
-    await update.message.reply_text(f"🚀 Kote went on a meme coin raid and hauled in +{earned} coins! Total: {pet['coins']}")
+    caption = f"🚀 Kote went on a meme coin raid and hauled in +{earned} coins! Total: {pet['coins']}"
+    await update.message.reply_animation(animation=GIFS["raid"], caption=caption)
 
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not pet_data:
@@ -88,7 +100,6 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(text)
 
-# Error catcher so the bot never crashes silently
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     logging.error(msg="Exception while handling an update:", exc_info=context.error)
 
@@ -101,15 +112,12 @@ def main():
     
     app = ApplicationBuilder().token(TOKEN).build()
     
-    # Register handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("feed", feed))
     app.add_handler(CommandHandler("play", play))
     app.add_handler(CommandHandler("raid", raid))
     app.add_handler(CommandHandler("leaderboard", leaderboard))
-    
-    # Register error handler to catch exceptions cleanly
     app.add_error_handler(error_handler)
     
     print("Kote simulator bot is running...")
